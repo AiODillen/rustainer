@@ -83,7 +83,7 @@ fn main() {
 
     // isolate pid namespace
     cmd.arg("bash").arg("-c").arg("unshare --mount --pid --fork --mount-proc");
-    cmd.arg("rbash");
+    cmd.arg("bash");
 
     // Setup the container directory
     match create_directory(&args.directory) {
