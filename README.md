@@ -31,7 +31,18 @@ unshare --pid --fork --mound-proc %command%
 erzeugt werden.
 
 Bsp.: Setzen wir für den command bash ein und führen dann ein pstree aus:
-![[Pasted image 20240826135513.png]]
+```
+Running container with the following settings:
+
+Directory: ./container
+CPUs: 1
+Memory: 512M
+
+
+-sh-5.2# pstree
+sh───pstree
+-sh-5.2# 
+```
 Wir sehen dann nur den aktuellen PID Baum aus unserer Shell und pstree.
 
 ### Implementierung
@@ -76,10 +87,12 @@ Eine weitere Idee war die Nutzung der `rbash` die weniger Rechte besitzt, zwar i
 Netzwerke können z.B. mit `cgroups` erstellt werden.
 Hier ein Beispiel:
 
-`sudo cgcreate -g net_cls:/isolated_group`
-`echo "0x100001" | sudo tee /sys/fs/cgroup/net_cls/isolated_group/net_cls.classid`
-`sudo iptables -A OUTPUT -m cgroup --cgroup 0x100001 -j DROP`
-`sudo cgexec -g net_cls:isolated_group <your_application_command>`
+```
+sudo cgcreate -g net_cls:/isolated_group
+echo "0x100001" | sudo tee /sys/fs/cgroup/net_cls/isolated_group/net_cls.classid
+sudo iptables -A OUTPUT -m cgroup --cgroup 0x100001 -j DROP
+sudo cgexec -g net_cls:isolated_group <your_application_command>
+```
 
 Ein Problem mit `cgroups` ist leider der Versionsunterschied zwischen `cgroups v1` und `cgroups v2` die Implementierungen sind grundlegend verschieden. 
 Rustainer funktioniert folglich nur auf einer bestimmten Version. Deswegen habe ich mich gegen die Umsetzung entschieden. Rustainer wäre sonst nur auf 50% aller Linux Systeme nutzbar.
@@ -117,6 +130,7 @@ Rustainer implementiert beide Features mittels systemd-run.
 - Systemd -> `systemd-run`
 - `unshare`
 - `bash`
+- root access
 
 ## Benutzung
 
@@ -164,17 +178,12 @@ Der minimale Aufruf ist also `rustainer`, der eine Shell mit einem Thread und 51
 
 Nach dem Aufruf von `rustainer` öffnet sich eine Shell und eine Übersicht über die Parameter.
 
+**Für Rustainer werden root Rechte benötigt, da systemd-run und unshare diese voraussetzen**
 
-> [!NOTE] Berechtigungen
-> Für Rustainer werden root Rechte benötigt, da systemd-run und unshare diese voraussetzen
-
-![[Pasted image 20240826175757.png]]
 
 Die Rustainer shell kann mit `exit` wieder verlassen werden, woraufhin auch der Ordner wieder gelöscht wird.
 
-
-> [!error] Warnung
-> Setze den Ordner für den Container NIE auf ein bestehendes Verzeichnis, da dieses gelöscht wird sobald sich der Container schließt
+**Setze den Ordner für den Container NIE auf ein bestehendes Verzeichnis, da dieses gelöscht wird sobald sich der Container schließt**
 
 
 # Was habe ich gelernt
