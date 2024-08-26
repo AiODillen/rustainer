@@ -174,17 +174,14 @@ Options:
   
 Alle Parameter, außer -h, --help, können miteinander beliebig kombiniert werden. Wird ein Parameter nicht angegeben wird ein Standardwert verwendet.
 
-Der minimale Aufruf ist also `rustainer`, der eine Shell mit einem Thread und 512 MB Arbeitsspeicher im relativen Verzeichnis ./container bereitstellt. 
+Der minimale Aufruf ist also `rustainer`, der eine Shell mit einem Thread und 512 MB Arbeitsspeicher im relativen Verzeichnis ./container bereitstellt.
+Es kann hier aus Sicherheitsgründen kein vorhandenes Verzeichnis verwendet werden, da Rustainer das Verzeichnis nach dem Gebrauch löscht.
 
 Nach dem Aufruf von `rustainer` öffnet sich eine Shell und eine Übersicht über die Parameter.
 
 **Für Rustainer werden root Rechte benötigt, da systemd-run und unshare diese voraussetzen**
 
-
 Die Rustainer shell kann mit `exit` wieder verlassen werden, woraufhin auch der Ordner wieder gelöscht wird.
-
-**Setze den Ordner für den Container NIE auf ein bestehendes Verzeichnis, da dieses gelöscht wird sobald sich der Container schließt**
-
 
 # Was habe ich gelernt
 
