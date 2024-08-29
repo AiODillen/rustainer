@@ -70,15 +70,11 @@ Um dies zu gewährleisten gibt es zwei Möglichkeiten:
 Das Problem an Option 1 ist, dass bei jedem Start von Rustainer die Dateien kopiert werden müssen, was je nach System einige GB sein können. 
 Ich konnte diese Methode leider nicht erfolgreich nachstellen.
 
-Option 2 konnte ich erfolgreich umsetzen und implementieren. Getestet habe ich diese Methode mit dem Alpine Linux Minimal Root FS [Link](https://alpinelinux.org/downloads/). Problem mit dieser Lösung ist allerdings, dass sich das Root FS nicht einfach ändern lässt, da nur der Paketmanager `apx` verwendet werden kann. Ohne diesen kann das RootFS nicht angepasst werden.
+Option 2 konnte ich erfolgreich umsetzen und implementieren. Getestet habe ich diese Methode mit dem Alpine Linux Minimal Root FS [Link](https://alpinelinux.org/downloads/).
 
 ### Implementierung
 
-Ich habe in Rustainer kein komplett Isoliertes RootFS umgesetzt. 
-
-Rustainer bietet die Möglichkeit ein Arbeitsverzeichnis festzulegen, welches dann auch automatisch erstellt und in der Shell gestartet wird.
-
-Eine weitere Idee war die Nutzung der `rbash` die weniger Rechte besitzt, zwar ist hier der `cd` Befehl gesperrt, allerdings lassen sich Dateien auch in anderen Verzeichnissen löschen...
+Rustainer bietet ein Isoliertes RootFS mittels `chroot` in ein Alpine Minimal FS
 
 ## Netzwerk Isolation
 
@@ -165,21 +161,23 @@ Usage: rustainer [OPTIONS]
 Options:
   -d, --directory <DIRECTORY>  Directory to store the container [default: ./container]
   
-  -c, --cpus <CPUS>            List of CPU Threads to allocate (ex. 1,2,3,4  or 1 5 7 10) [default: 1]
+  -c, --cpus <CPUS>            List of CPU Threads to allocate (ex. 1,2,3,4) [default: All]
   
-  -m, --memory <MEMORY>        Maximum memory to allocate (ex. 512M, 1G, 300K) [default: 512M]
+  -m, --memory <MEMORY>        Maximum memory to allocate (ex. 512M, 1G, 300K) [default: All]
   
   -h, --help                   Print help
   ```
   
 Alle Parameter, außer -h, --help, können miteinander beliebig kombiniert werden. Wird ein Parameter nicht angegeben wird ein Standardwert verwendet.
 
-Der minimale Aufruf ist also `rustainer`, der eine Shell mit einem Thread und 512 MB Arbeitsspeicher im relativen Verzeichnis ./container bereitstellt.
+Der minimale Aufruf ist also `rustainer`, der eine Shell mit eallen Threads und ohne Arbeitsspeicherlimit im relativen Verzeichnis ./container bereitstellt.
 Es kann hier aus Sicherheitsgründen kein vorhandenes Verzeichnis verwendet werden, da Rustainer das Verzeichnis nach dem Gebrauch löscht.
 
 Nach dem Aufruf von `rustainer` öffnet sich eine Shell und eine Übersicht über die Parameter.
 
-**Für Rustainer werden root Rechte benötigt, da systemd-run und unshare diese voraussetzen**
+**Für Rustainer werden root Rechte benötigt, da systemd-run und unshare und chroot diese voraussetzen**
+
+Standardbefehle werden über eine busybox unter /bin/busybox mittels /bin/busybox \<command> zur Verfügung gestellt (e.g. /bin/busybox ls).
 
 Die Rustainer shell kann mit `exit` wieder verlassen werden, woraufhin auch der Ordner wieder gelöscht wird.
 
@@ -193,6 +191,4 @@ Mir ist im Laufe des Projekts klar geworden, dass der Scope des Projekts mehr au
 	- TUI für offene `screen` sessions bauen
 - Netzwerk Isolation
 	- Verbindungen zwischen Containern
-- FS Isolation
-	- keine Ahnung wie das schön geht xD
 

@@ -1,35 +1,22 @@
 use std::{env::current_dir, fs, path::Path, process::{Command, Stdio}};
 use clap::Parser;
+use copy_dir::copy_dir;
 
 
 #[derive(Parser, Debug, Clone)]
 #[command(about, long_about = None)]
 struct Args {
     /// Directory to store the container
-    #[arg(short, long, default_value = "./container")] // Set default value to an empty string
+    #[arg(short, long, default_value = "")] // Set default value to an empty string
     directory: String,
 
-    /// List of CPU Threads to allocate (ex. 1,2,3,4  or 1 5 7 10)
-    #[arg(short, long, default_value_t = 1)]
-    cpus: u8,
+    /// List of CPU Threads to allocate (ex. 1,2,3,4)
+    #[arg(short, long, default_value = "All Threads")]
+    cpus: String,
 
     /// Maximum memory to allocate (ex. 512M, 1G, 300K)
-    #[arg(short, long, default_value = "512M")]
+    #[arg(short, long, default_value = "No Limit")]
     memory: String,
-}
-
-fn create_directory(path: &str) -> Result<(), String> {
-
-    let path = Path::new(path);
-
-    if path.exists() {
-        return Ok(());
-    }
-
-    match fs::create_dir_all(&path) {
-        Ok(_) => Ok(()),
-        Err(e) => Err(format!("Failed to create directory '{}': {}", path.display(), e)),
-    }
 }
 
 fn cleanup_dirs(path: &str) -> Result<(), String> {
@@ -50,7 +37,7 @@ fn main() {
 
     if args.directory.is_empty() {
         args.directory = current_dir().unwrap().to_string_lossy().to_string();
-        args.directory.push_str("/container") // Set the current directory if the directory field is empty
+        args.directory.push_str("/container/") // Set the current directory if the directory field is empty
     }
 
     let mut cmd = Command::new("systemd-run");
@@ -67,34 +54,38 @@ fn main() {
     // Set the service name
     cmd.arg("-u").arg("rustainer");
 
-    // Set the working directory
-    cmd.arg(format!("--working-directory={}", args.directory));
-
     // Set the memory limit
-    let re_mem = regex::Regex::new(r"(\d+)([KMG])").unwrap();
-    if !re_mem.is_match(&args.memory) {
-        eprintln!("Invalid memory format. Use a number followed by K, M, or G.");
-        std::process::exit(1);
+    if args.memory != "No Limit" {
+        let re_mem = regex::Regex::new(r"(\d+)([KMG])").unwrap();
+        if !re_mem.is_match(&args.memory) {
+            eprintln!("Invalid memory format. Use a number followed by K, M, or G.");
+            std::process::exit(1);
+        }
+        cmd.arg("-p").arg(format!("MemoryMax={}", args.memory));
     }
-    cmd.arg("-p").arg(format!("MemoryMax={}", args.memory));
 
     // Set the CPU limit
-    cmd.arg("-p").arg(format!("AllowedCPUs={}", args.cpus));
-
-    // isolate pid namespace
-    cmd.arg("bash").arg("-c").arg("unshare --mount --pid --fork --mount-proc");
-    cmd.arg("bash");
+    if args.cpus != "All Threads" {
+        let re_cpu = regex::Regex::new(r"(\d+)([ ,]\d+)*").unwrap();
+        if !re_cpu.is_match(&args.cpus) {
+            eprintln!("Invalid CPU format. Use a list of numbers separated by commas or spaces.");
+            std::process::exit(1);
+        }
+        cmd.arg("-p").arg(format!("AllowedCPUs={}", args.cpus));
+    }
 
     // Setup the container directory
-    match create_directory(&args.directory) {
-        Ok(_) => println!("Directory '{}' created successfully.", args.directory),
+    match copy_dir("./minifs", &args.directory) {
+        Ok(_) => println!("Files copied successfully."),
         Err(e) => {
             eprintln!("{}", e);
             std::process::exit(1);
         }
     }
 
-    
+    // isolate pid namespace
+    cmd.arg("bash").arg("-c")
+    .arg(format!("unshare --mount --pid --fork --mount-proc --root={} -- /bin/busybox sh", args.directory));
 
     //Run the container
     cmd.stdin(Stdio::inherit())  // Inherit standard input
@@ -107,6 +98,7 @@ fn main() {
     println!("Directory: {}", args.directory);
     println!("CPUs: {}", args.cpus);
     println!("Memory: {}\n\n", args.memory);
+    println!("To use standard commands, like 'ls', 'ps', 'top', etc., you neeed to call /bin/busybox <command>.\n");
     
     let mut cmd = cmd.spawn().expect("failed to start container");
 
